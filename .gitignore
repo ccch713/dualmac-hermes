@@ -18,3 +18,10 @@
 # 备份
 *.bak
 *.backup
+
+# 敏感文件
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+known_hosts
