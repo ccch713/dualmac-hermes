@@ -1,5 +1,240 @@
 # dualmac-hermes
 
+> Dual Mac Mini Thunderbolt bridge + Hermes Agent dual-machine collaboration
+
+**Turn your two Macs into one supercomputer — 32G runs Hermes Agent orchestration, 16G runs LLM inference, Thunderbolt 5 direct connection, zero cloud dependency.**
+
+[中文版说明请见下方](#中文说明) | [Chinese version below](#中文说明)
+
+---
+
+## What is this
+
+I use two Mac Mini M4 (one 32G, one 16G) connected via Thunderbolt 5,
+building a **fully local, zero-cloud-dependency dual-machine collaboration architecture**:
+
+- **32G (orchestrator)**: Hermes Agent, Git, Obsidian, all local scripts
+- **16G (LLM inference + message gateway)**: CodeWhale + DeepSeek, as inference backend
+- **Thunderbolt 5 direct connection**: 192.168.2.1 ↔ 192.168.2.2, latency < 1ms
+- **SSH agent forwarding**: 32G → 16G remote calls are seamless
+
+Use cases:
+- Want to run LLMs but don't want to send data to the cloud
+- Single machine memory not enough (32G can't run 70B models)
+- Want Agent orchestration + local LLM inference, refuse to pay OpenAI monthly
+- 1-2 person small team wants to save money + no cloud dependency
+
+---
+
+## Quick Start
+
+### Hardware Requirements
+
+| Device | Minimum | Recommended |
+|--------|---------|-------------|
+| Mac 1 (orchestrator) | M2 / 16GB | M4 / 32GB |
+| Mac 2 (inference) | M2 / 16GB | M4 / 16GB+ |
+| Connection | USB-C | Thunderbolt 4/5 |
+| OS | macOS 13+ | macOS 15+ |
+
+### 1. Thunderbolt Bridge Setup
+
+**On both Macs**:
+```bash
+# Mac 1 (orchestrator) gets 192.168.2.1
+sudo ifconfig bridge0 inet 192.168.2.1 netmask 255.255.255.0
+
+# Mac 2 (inference) gets 192.168.2.2
+sudo ifconfig bridge0 inet 192.168.2.2 netmask 255.255.255.0
+
+# Verify connectivity
+ping 192.168.2.2  # from Mac 1
+```
+
+**Persistence**: Use LaunchDaemon to auto-configure IP at boot (see `references/thunderbolt-setup.md`)
+
+### 2. SSH Key Authentication
+
+```bash
+# On Mac 1, generate key (if not already)
+ssh-keygen -t rsa -b 4096
+
+# Copy public key to Mac 2
+ssh-copy-id your_username@192.168.2.2
+
+# Test
+ssh your_username@192.168.2.2 'echo OK'
+```
+
+### 3. Install CodeWhale + DeepSeek on Mac 2
+
+```bash
+# Install CodeWhale (see https://codewhale.dev for details)
+curl -fsSL https://codewhale.dev/install.sh | sh
+
+# Configure DeepSeek provider
+codewhale login
+# Select DeepSeek, paste your API key
+```
+
+### 4. Install cw_exec.sh on Mac 1
+
+```bash
+# Copy cw_exec.sh to your PATH
+sudo cp cw_exec.sh /usr/local/bin/cw
+chmod +x /usr/local/bin/cw
+
+# Test
+cw "Write a Python add function" /tmp/add.py /tmp
+cat /tmp/add.py
+```
+
+### 5. Integrate with Hermes Agent (Optional)
+
+Add `cw_exec.sh` to Hermes toolchain:
+- `~/.hermes/skills/devops/cross-device-llm-orchestration/templates/cw_exec.sh`
+- Or your Agent framework's corresponding tool path
+
+---
+
+## Core Files
+
+| File | Description |
+|------|-------------|
+| `cw_exec.sh` | 32G → SSH → 16G LLM call wrapper (10.3 KB) |
+| `LICENSE` | Apache-2.0 |
+| `references/thunderbolt-setup.md` | Detailed Thunderbolt bridge config (LaunchDaemon persistence) |
+| `references/troubleshooting.md` | Common issues (SSH fail / 16G down / CodeWhale stuck) |
+| `examples/` | Usage examples |
+
+---
+
+## cw_exec.sh Capabilities
+
+```bash
+# Basic: call LLM to generate code
+cw "Write a hello function" hello.py
+
+# Specify output directory
+cw "Write a database connection pool" db/pool.py /Users/me/project
+
+# View call statistics
+cw --stats
+
+# Disable fallback (16G only)
+cw "prompt" file.py /tmp --no-fallback
+
+# Disable logging (no SQLite)
+cw "prompt" file.py /tmp --no-log
+```
+
+### Fallback Mechanism (Key)
+
+```
+Call 16G DeepSeek → 2 retries fail → auto-switch to 32G local OpenAI/MiniMax API
+```
+
+- Health check: 5s SSH timeout
+- Retry: 2 times, 2s interval
+- Fallback: default `gpt-4o-mini` (modifiable in script)
+
+### Logging
+
+All calls written to `~/.hermes/llm_log.db`:
+```sql
+SELECT time, model, verdict, latency_sec, tokens_in, tokens_out, cost_usd
+FROM llm_calls
+ORDER BY ts DESC LIMIT 20;
+```
+
+---
+
+## Real-World Data (2026-06 Tested)
+
+5 runs:
+
+| # | Operation | Latency | Cost |
+|---|-----------|---------|------|
+| 1 | v4-pro writes add function | 3s | $0.0001 |
+| 2 | v4-pro writes multiply function | 11s | $0.0001 |
+| 3 | Simulated SSH down, triggers fallback | 0s | $0.0000 |
+| 4 | Simulated SSH down, no fallback key | 0s | (SSH_DOWN) |
+| 5 | (Production runs) | - | - |
+
+---
+
+## What I Use This For
+
+1. **AI coding assistant**: CodeWhale exec writes code remotely, local IDE gets it instantly
+2. **AI code review**: DeepSeek v4-pro gives review opinions
+3. **Agent task orchestration**: Hermes Agent dispatches multiple LLM calls
+4. **Personal knowledge base**: Obsidian + local LLM, no cloud dependency
+
+---
+
+## Why Apache-2.0
+
+- Most permissive open source license, allows anyone to use, commercialize, modify
+- Includes **patent grant**, protects contributors from patent litigation
+- Most enterprise legal teams approve (unlike AGPL which gets rejected)
+- You're free to commercialize or change license in the future
+
+**Why not AGPL-3.0**: AGPL is an anti-SaaS weapon. While it can stop big companies from closing source,
+it scares away 90% of potential contributors/integrators from touching your project.
+OPC prioritizes influence, not nuclear weapons.
+
+---
+
+## Roadmap
+
+- [x] cw_exec.sh v3 (fallback + SQLite logging)
+- [x] Thunderbolt bridge LaunchDaemon persistence
+- [ ] multi-model routing (CHEAPEST/FASTEST/BEST)
+- [ ] Health check dashboard (Grafana)
+- [ ] AHE Loop cross-machine collaboration (local + remote)
+- [ ] Hermes skill: dualmac topology auto-discovery
+
+---
+
+## Contributing
+
+Issues / PRs welcome. **No CLA required** (I don't plan to maintain a large project).
+
+Before submitting:
+```bash
+bash -n your_script.sh   # bash syntax
+shellcheck your_script.sh  # if shellcheck installed
+```
+
+---
+
+## License
+
+Apache-2.0 — see [LICENSE](LICENSE)
+
+---
+
+## Author
+
+ccch713 — 2026-06-24
+
+If you set up dual machines using this scheme, let me know: just open an Issue.
+
+---
+
+## Related Projects
+
+- [Hermes Agent](https://hermes-agent.nousresearch.com) — Orchestration framework
+- [CodeWhale](https://codewhale.dev) — TUI code Agent
+- [Mascarade](https://github.com/electron-rare/mascarade) — Multi-machine LLM orchestration reference
+- [OpenTracy](https://github.com/OpenTracy/OpenTracy) — AHE Loop algorithm source
+
+(Last two I researched but didn't actually use — OPC doesn't need their complexity, just borrow ideas)
+
+---
+
+# 中文说明
+
 > 双 Mac Mini 雷雳桥 + Hermes Agent 双机协作方案
 
 **让你的两台 Mac 变成一台超级计算机——32G 跑 Hermes Agent 调度,16G 跑 LLM 推理,雷雳5 直连,零配置零云依赖。**
@@ -58,10 +293,10 @@ ping 192.168.2.2  # 从 Mac 1
 ssh-keygen -t rsa -b 4096
 
 # 把公钥拷到 Mac 2
-ssh-copy-id chenye@192.168.2.2
+ssh-copy-id 你的用户名@192.168.2.2
 
 # 测试
-ssh chenye@192.168.2.2 'echo OK'
+ssh 你的用户名@192.168.2.2 'echo OK'
 ```
 
 ### 3. 在 Mac 2 安装 CodeWhale + DeepSeek
@@ -147,9 +382,9 @@ ORDER BY ts DESC LIMIT 20;
 
 ---
 
-## 实战数据(2026-06-23 实测)
+## 实战数据(2026-06 实测)
 
-我跑了 5 次:
+5 次:
 
 | # | 操作 | 延迟 | 费用 |
 |---|------|------|------|
@@ -213,7 +448,7 @@ Apache-2.0 — 详见 [LICENSE](LICENSE)
 
 ## 作者
 
-陈烨 (ccch713) — 武汉,2026-06-24
+ccch713 — 2026-06-24
 
 如果你用了这个方案搭起了双机,欢迎告诉我:开个 Issue 就行。
 

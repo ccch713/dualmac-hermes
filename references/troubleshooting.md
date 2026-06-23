@@ -13,20 +13,20 @@ ssh: connect to host 192.168.2.2 port 22: Connection refused
 ping 192.168.2.2
 
 # 2. 检查 SSH 服务在 16G 上开没开
-ssh chenye@192.168.2.2 'sudo systemsetup -getremotelogin'
+ssh your_user@192.168.2.2 'sudo systemsetup -getremotelogin'
 # 应返回 "Remote Login: On"
 
 # 3. 如果返回 "Remote Login: Off"
-ssh chenye@192.168.2.2 'sudo systemsetup -setremotelogin on'
+ssh your_user@192.168.2.2 'sudo systemsetup -setremotelogin on'
 ```
 
 ### 16G 上 SSH 开了但还是连不上
 ```bash
 # 看 sshd 进程在不在
-ssh chenye@192.168.2.2 'ps aux | grep sshd'
+ssh your_user@192.168.2.2 'ps aux | grep sshd'
 
 # 看防火墙
-ssh chenye@192.168.2.2 'sudo /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate'
+ssh your_user@192.168.2.2 'sudo /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate'
 ```
 
 ---
@@ -61,13 +61,13 @@ source ~/.zshrc
 
 ### 诊断
 ```bash
-ssh chenye@192.168.2.2 'ps aux | grep codewhale'
+ssh your_user@192.168.2.2 'ps aux | grep codewhale'
 ```
 
 ### 解决
 ```bash
 # 杀掉重启
-ssh chenye@192.168.2.2 'pkill -f codewhale; codewhale --version'
+ssh your_user@192.168.2.2 'pkill -f codewhale; codewhale --version'
 
 # 如果经常卡,降级到 codewhale tui 而非 exec
 ```

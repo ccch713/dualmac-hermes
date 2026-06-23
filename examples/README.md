@@ -78,7 +78,7 @@ gen-test:
 	cw "为 $(FILE) 写 pytest 测试" tests/test_$(FILE).py .
 ```
 
-## 7. 跑 Claude Code / CodeWhale 全套流程
+## 7. 跑 AI Agent 全套流程
 
 ```bash
 # 让 16G 帮你 review PR
@@ -89,31 +89,29 @@ EOF
 
 ---
 
-## 真实场景示例(2026-06)
+## 实战示例
 
-我在做这些项目时实际用过:
+下面是一些常见场景的示例代码。
 
-### 口腔诊所多模型对比项目
+### 跨项目对比生成
+
 ```bash
-# 让 DS 帮写 v2.0 完整代码 (DS-pro-CW 版)
-cw "为口腔诊所 SaaS 写完整的 v2.0 后端代码,SQLAlchemy + JWT + Alembic" oral_clinic_v2.py oral-clinic-compare/DS-pro-CW版/
-
-# 跑 3 个 LLM 横向对比
-for model in deepseek-v4-pro deepseek-v4-flash gpt-4o-mini; do
-  cw "写口腔诊所 SaaS v2.0 后端,要求与 $model 版本完全独立" oral_$model.py oral-clinic-compare/
-done
+# 让 LLM 帮写某个独立模块,作为对比候选
+cw "写一个 Python 模块:输入用户列表,返回分页结果" module.py compare-project/
 ```
 
-### ESG SaaS 报告生成
+### 报告生成骨架
+
 ```bash
-# 让 DS 写报告生成骨架
-cw "写一个 Python 脚本:输入 16 家评级机构 + 指标 JSON,输出 Markdown 报告" generator.py esg-assessment-saas/scripts/esg_report/
+# 让 LLM 写一个脚本:输入 JSON 数据,输出 Markdown 报告
+cw "写一个 Python 脚本:输入 16 家评级机构 + 指标 JSON,输出 Markdown 报告" generator.py my-project/scripts/
 ```
 
-### cw_exec.sh 自身迭代
+### 工具脚本迭代
+
 ```bash
-# 让 DS 加 fallback 能力
-cw "给 cw_exec.sh 加 SQLite 日志 + 16G fallback" cw_exec_v3.sh ~/.hermes/skills/.../templates/
+# 让 LLM 给现有脚本加新能力
+cw "给 cw_exec.sh 加 SQLite 日志 + fallback 能力" cw_exec_v3.sh my-skill/templates/
 
 # 跑测试,验证 KEEP / SSH_DOWN / FALLBACK 三态
 ```

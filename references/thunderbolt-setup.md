@@ -105,7 +105,7 @@ SSH 配置:`~/.ssh/config`:
 ```
 Host minimax-16g
     HostName 192.168.2.2
-    User chenye
+    User your_user
     IdentityFile ~/.ssh/id_rsa
     ServerAliveInterval 60
 ```

@@ -39,7 +39,9 @@ while [[ "${1:-}" != "" ]]; do
   esac
 done
 
-SSH_TARGET="chenye@192.168.2.2"
+# SSH 目标用户 — 改成你的用户名 (例如: alice@192.168.2.2)
+# 也可通过环境变量覆盖: export CW_SSH_TARGET=alice@192.168.2.2
+SSH_TARGET="${CW_SSH_TARGET:-your_user@192.168.2.2}"
 MODEL="deepseek-v4-pro"
 LOG_DB="${HOME}/.hermes/llm_log.db"
 HEALTH_TIMEOUT=5  # 16G 健康检查超时 (秒)
@@ -134,7 +136,7 @@ check_16g_alive() {
 }
 
 # ─── SSH agent 自检 ───────────────────────────────────
-if ! ssh-add -l 2>/dev/null | grep -q "chenye@chenyedeMac-mini"; then
+if ! ssh-add -l 2>/dev/null | grep -q "id_rsa\|id_ed25519"; then
   echo "⚠️  SSH agent 缺 key，自动加载..."
   ssh-add --apple-use-keychain ~/.ssh/id_rsa 2>&1 | head -2
 fi
